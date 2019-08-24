@@ -51,7 +51,7 @@ define(['q', 'uiUtil'], function(Q, uiUtil) {
             }
             // Test for Cache API
             if('caches' in window) {
-                assetsCache.capability = assetsCache.capability + 'CacheAPI|';
+                assetsCache.capability = 'cacheAPI|' + assetsCache.capability;
                 console.log('Cache API is available, but in development in this app');
             } else {
                 console.log('CacheAPI is not supported');
@@ -95,20 +95,30 @@ define(['q', 'uiUtil'], function(Q, uiUtil) {
                     break;
                 case 'indexedDB':
                     cacheType = 'IndexedDB';
+                    // Sometimes we already have the count as a result of test, so no need to look again
                     if (typeof result !== 'boolean' && (result === 0 || result > 0)) { 
                         cacheCount = result;
+                    } else {
+                        idxDB('count', function(cacheCount) {
+                            callback([cacheType, cacheCount]);
+                        });
                     }
                     break;
+                case 'cacheAPI':
+                    cacheType = 'CacheAPI';
+                    caches.open(dbName).then(function(cache) {
+                        cache.keys().then(function(keys) {
+                          callback([cacheType, keys.length]);
+                        });
+                      });
+                    break;
                 default:
+                    // If you see this in Config then something has gone wrong!
                     cacheType = 'No cache';
                     cacheCount = 'null';
             }
             if (cacheCount || cacheCount === 0) {
                 callback([cacheType, cacheCount]);
-            } else {
-                idxDB('count', function(cacheCount) {
-                    callback([cacheType, cacheCount]);
-                });
             }
         });
     } 
