@@ -956,17 +956,17 @@ define(['jquery', 'zimArchiveLoader', 'util', 'uiUtil', 'cache', 'utf8', 'cookie
                     docBody.addEventListener('dragover', handleIframeDragover);
                     docBody.addEventListener('drop', handleIframeDrop);
                 }
+                // Reset UI when the article is unloaded
+                if (iframeArticleContent.contentWindow) iframeArticleContent.contentWindow.onunload = function() {
+                    $("#articleList").empty();
+                    $('#articleListHeaderMessage').empty();
+                    $('#articleListWithHeader').hide();
+                    $("#prefix").val("");
+                    $("#searchingArticles").show();
+                };
             };
             // We put the ZIM filename as a prefix in the URL, so that browser caches are separate for each ZIM file
             iframeArticleContent.src = "../" + selectedArchive._file._files[0].name + "/" + dirEntry.namespace + "/" + encodedUrl;
-            // Reset UI when the article is unloaded
-            if (iframeArticleContent.contentWindow) iframeArticleContent.contentWindow.onunload = function() {
-                $("#articleList").empty();
-                $('#articleListHeaderMessage').empty();
-                $('#articleListWithHeader').hide();
-                $("#prefix").val("");
-                $("#searchingArticles").show();
-            };
         } else {
             // In jQuery mode, we read the article content in the backend and manually insert it in the iframe
             if (dirEntry.isRedirect()) {
