@@ -113,7 +113,7 @@ define(['q', 'uiUtil'], function(Q, uiUtil) {
                       });
                     break;
                 default:
-                    // If you see this in Config then something has gone wrong!
+                    // User has turned off caching
                     cacheType = 'No cache';
                     cacheCount = 'null';
             }
