@@ -23,7 +23,7 @@
 'use strict';
 define(['q', 'uiUtil'], function(Q, uiUtil) {
 
-    var dbName = 'KiwixJS'; // Set the database name here
+    var dbName = 'KiwixJS'; // Set the database or cache name here
     var objStore = 'Assets'; // Name of the object store
     
     // DEV: Regex below defines the permitted key types for the cache; add further types as needed
@@ -200,6 +200,41 @@ define(['q', 'uiUtil'], function(Q, uiUtil) {
             };
         };
     }
+
+    function cacheAPI(keyOrCommand, valueOrCallback, callback) {
+        var value = callback ? valueOrCallback : null;
+        var rtnFn = callback || valueOrCallback;
+        // Process commands
+        if (keyOrCommand === 'clear') {
+            caches.delete(dbName).then(rtnFn);
+        } else if (keyOrCommand === 'delete') {
+            caches.open(dbName).then(function(cache) {
+                cache.delete(value).then(rtnFn);
+            });
+        } else if (value === null) {
+            // Request retrieval of data
+            caches.open(dbName).then(function(cache) {
+                cache.match(keyOrCommand).then(function(response) {
+                    if (!response) {
+                        rtnFn(null)
+                    } else {
+                        response.text().then(function(data) {
+                            rtnFn(data);
+                        });
+                    }
+                });
+            });
+        } else {
+            // Request storing of data in cache
+            caches.open(dbName).then(function(cache) {
+                // Construct a Response from value
+                var response = new Response(value);
+                cache.put(keyOrCommand, response).then(function(rtnVal) {
+                    rtnFn(rtnVal);
+                });
+            });
+        }
+    }
     
     /**
      * Stores information about the last visited page in a cookie and, if available, in localStorage or indexedDB
@@ -270,6 +305,10 @@ define(['q', 'uiUtil'], function(Q, uiUtil) {
             idxDB(key, contents, function(result) {
                 callback(result);
             });
+        } else if (/^cacheAPI/.test(assetsCache.capability)) {
+            cacheAPI(key, contents, function(result) {
+                callback(result);
+            });
         } else {
             callback(key);
         }
@@ -302,6 +341,10 @@ define(['q', 'uiUtil'], function(Q, uiUtil) {
         } else if (/^localStorage/.test(assetsCache.capability)) {
             contents = localStorage.getItem(key);
             callback(contents);
+        } else if (/^cacheAPI/.test(assetsCache.capability)) {
+            cacheAPI(key, function(contents) {
+                callback(contents);      
+            });
         } else if (/^indexedDB/.test(assetsCache.capability)) {
             idxDB(key, function(contents) {
                 if (typeof contents !== 'undefined') {
@@ -433,6 +476,9 @@ define(['q', 'uiUtil'], function(Q, uiUtil) {
                     if (/indexedDB/.test(capability)) {
                         idxDB('delete', key, function(){});
                     }
+                    if (/cacheAPI/.test(capability)) {
+                        cacheAPI('delete', key, function(){});
+                    }
                     itemsCount++;
                 }
             }
@@ -440,7 +486,7 @@ define(['q', 'uiUtil'], function(Q, uiUtil) {
         }
         if (items === 'all') {
             var result;
-            if (/^memory|^indexedDB/.test(capability)) {
+            if (/^memory|^indexedDB|^cachAPI/.test(capability)) {
                 itemsCount += assetsCache.size;
                 result = "assetsCache";
             }
