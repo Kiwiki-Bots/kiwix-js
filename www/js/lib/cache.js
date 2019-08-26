@@ -204,7 +204,8 @@ define(['q', 'uiUtil'], function(Q, uiUtil) {
 
     /**
      * Opens a CacheAPI cache and adds or retrieves a key-value pair to it, or performs utility commands
-     * on the cache. This interface also allows the use of callbacks inside the Cache Promise API.
+     * on the cache. This interface also allows the use of callbacks inside the Cache Promise API for ease of
+     * interoperability with the interface for idxDB code above.
      * 
      * @param {String} keyOrCommand The key of the value to be written or read, or commands 'clear' (clears cache),
      *     'delete' (deletes a record with key passed in valueOrCallback)         
@@ -234,6 +235,7 @@ define(['q', 'uiUtil'], function(Q, uiUtil) {
                     }
                 }).catch(function(err) {
                     console.error('Unable to match assets from Cache API!', err);
+                    rtnFn(null);
                 });
             });
         } else {
@@ -244,7 +246,7 @@ define(['q', 'uiUtil'], function(Q, uiUtil) {
                 cache.put('../' + keyOrCommand, response).then(function() {
                     rtnFn(true);
                 }).catch(function(err) {
-                    console.error(err);
+                    console.error('Unable to store assets in Cache API!', err);
                     rtnFn(null);
                 });
             });
