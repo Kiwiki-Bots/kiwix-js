@@ -28,7 +28,7 @@ define(['q', 'uiUtil'], function(Q, uiUtil) {
     
     // DEV: Regex below defines the permitted key types for the cache; add further types as needed
     // NB: The key type of '.zim', or '.zimaa' (etc.) is used to store a ZIM's last-accessed article 
-    var regexpKeyTypes = /(?:(?:^|@)A\/.+|\.js|\.css|\.zim\w{0,2})$/i;
+    var regexpKeyTypes = /(?:(?:^|\/)A\/.+|\.[Jj][Ss]|\.[Cc][Ss][Ss]|\.[Zz][Ii][Mm]\w{0,2})$/;
 
     /** 
      * Tests the enviornment's caching capabilities and sets assetsCache.capability to the supported level
@@ -106,11 +106,11 @@ define(['q', 'uiUtil'], function(Q, uiUtil) {
                     break;
                 case 'cacheAPI':
                     cacheType = 'CacheAPI';
-                    caches.open(dbName).then(function(cache) {
-                        cache.keys().then(function(keys) {
-                          callback([cacheType, keys.length]);
+                    caches.open(dbName).then(function (cache) {
+                        cache.keys().then(function (keys) {
+                            callback([cacheType, keys.length]);
                         });
-                      });
+                    });
                     break;
                 default:
                     // User has turned off caching
@@ -201,6 +201,15 @@ define(['q', 'uiUtil'], function(Q, uiUtil) {
         };
     }
 
+    /**
+     * Opens a CacheAPI cache and adds or retrieves a key-value pair to it, or performs utility commands
+     * on the cache. This interface also allows the use of callbacks inside the Cache Promise API.
+     * 
+     * @param {String} keyOrCommand The key of the value to be written or read, or commands 'clear' (clears cache),
+     *     'delete' (deletes a record with key passed in valueOrCallback)         
+     * @param {Variable} valueOrCallback The value to write, or a callback function for read and command transactions
+     * @param {Function} callback Callback for write transactions only
+     */
     function cacheAPI(keyOrCommand, valueOrCallback, callback) {
         var value = callback ? valueOrCallback : null;
         var rtnFn = callback || valueOrCallback;
@@ -214,9 +223,9 @@ define(['q', 'uiUtil'], function(Q, uiUtil) {
         } else if (value === null) {
             // Request retrieval of data
             caches.open(dbName).then(function(cache) {
-                cache.match(keyOrCommand).then(function(response) {
+                cache.match('../' + keyOrCommand).then(function(response) {
                     if (!response) {
-                        rtnFn(null)
+                        rtnFn(null);
                     } else {
                         response.text().then(function(data) {
                             rtnFn(data);
@@ -229,8 +238,11 @@ define(['q', 'uiUtil'], function(Q, uiUtil) {
             caches.open(dbName).then(function(cache) {
                 // Construct a Response from value
                 var response = new Response(value);
-                cache.put(keyOrCommand, response).then(function(rtnVal) {
-                    rtnFn(rtnVal);
+                cache.put('../' + keyOrCommand, response).then(function() {
+                    rtnFn(true);
+                }).catch(function(err) {
+                    console.error(err);
+                    rtnFn(null);
                 });
             });
         }
@@ -288,7 +300,7 @@ define(['q', 'uiUtil'], function(Q, uiUtil) {
             return;
         }
         // Check if we're actually setting an article 
-        var keyArticle = key.match(/([^@]+)@(A\/.+$)/);
+        var keyArticle = key.match(/([^/]+)\/(A\/.+$)/);
         if (keyArticle) { // We're setting an article, so go to setArticle function
             setArticle(keyArticle[1], keyArticle[2], contents, callback);
             return;
@@ -329,7 +341,7 @@ define(['q', 'uiUtil'], function(Q, uiUtil) {
         }
         // Check if we're actually calling an article 
         // DEV: See above about this regex (may need expanding)
-        var keyArticle = key.match(/([^@]+)@(A\/.+$)/);
+        var keyArticle = key.match(/([^/]+)\/(A\/.+$)/);
         if (keyArticle) { // We're retrieving an article, so go to getArticle function
             getArticle(keyArticle[1], keyArticle[2], callback);
             return;
@@ -370,7 +382,7 @@ define(['q', 'uiUtil'], function(Q, uiUtil) {
      */
     function getItemFromCacheOrZIM(selectedArchive, key, callback, dirEntry) {
         // First check if the item is already in the cache
-        var title = key.replace(/^[^@]+@/, '');
+        var title = key.replace(/^[^/]+\//, '');
         getItem(key, function(result) {
             if (result !== null && result !== false && typeof result !== 'undefined') {
                 console.log("Cache supplied " + title);
@@ -503,8 +515,20 @@ define(['q', 'uiUtil'], function(Q, uiUtil) {
             if (/indexedDB/.test(capability)) {
                 result = result ? result + " and indexedDB" : "indexedDB";
                 idxDB('count', function(number) {
+                    itemsCount += number;
                     idxDB('clear', function() {
-                        itemsCount += number;
+                        result = result ? result + " (" + itemsCount + " items deleted)" : "no assets to delete";
+                        console.log("cache.clear: " + result);
+                        callback(itemsCount);
+                    });
+                });
+            }
+            // No need to use loose test here because cacheAPI trumps the others
+            if (/^cacheAPI/.test(capability)) {
+                result = result ? result + " and cacheAPI" : "cacheAPI";
+                count(function(number) {
+                    itemsCount += number[1];
+                    cacheAPI('clear', function() {
                         result = result ? result + " (" + itemsCount + " items deleted)" : "no assets to delete";
                         console.log("cache.clear: " + result);
                         callback(itemsCount);
@@ -550,7 +574,7 @@ define(['q', 'uiUtil'], function(Q, uiUtil) {
         // a reference to the content from the Cache or from the ZIM
         assetsCache.busy = titles.length;
         titles.forEach(function(title) {
-            getItemFromCacheOrZIM(selectedArchive, zimFile + '@' + title[1], function(assetContent) {
+            getItemFromCacheOrZIM(selectedArchive, zimFile + '/' + title[1], function(assetContent) {
                 assetsCache.busy--;
                 if (assetContent || assetContent === '') {
                     var newAssetTag = uiUtil.createNewAssetElement(title[0], attribute, assetContent);
