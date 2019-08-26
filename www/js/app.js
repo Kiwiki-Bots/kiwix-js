@@ -1325,6 +1325,7 @@ define(['jquery', 'zimArchiveLoader', 'util', 'uiUtil', 'cache', 'utf8', 'cookie
         // Show the selected content in the page
         $('#about').hide();
         $('#configuration').hide();
+        $('#navigationButtons').show();
         $('#formArticleSearch').show();
         $('#articleList').show();
         $("#articleList").empty();
