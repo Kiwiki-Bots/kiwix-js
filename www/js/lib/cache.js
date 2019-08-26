@@ -50,11 +50,12 @@ define(['q', 'uiUtil'], function(Q, uiUtil) {
                 console.log("inexedDB is not supported");
             }
             // Test for Cache API
-            if('caches' in window) {
+            if('caches' in window && /https?:/i.test(window.location.protocol)) {
                 assetsCache.capability = 'cacheAPI|' + assetsCache.capability;
                 console.log('Cache API is available, but in development in this app');
             } else {
-                console.log('CacheAPI is not supported');
+                console.log('CacheAPI is not supported' + (/https?:/i.test(window.location.protocol) ? '' : 
+                    ' with the ' + window.location.protocol + ' protocol'));
             }
             // Test for localCache capability (this is a fallback, indexedDB is preferred because it permits more storage)
             if (typeof Storage !== "undefined") {
@@ -231,6 +232,8 @@ define(['q', 'uiUtil'], function(Q, uiUtil) {
                             rtnFn(data);
                         });
                     }
+                }).catch(function(err) {
+                    console.error('Unable to match assets from Cache API!', err);
                 });
             });
         } else {
